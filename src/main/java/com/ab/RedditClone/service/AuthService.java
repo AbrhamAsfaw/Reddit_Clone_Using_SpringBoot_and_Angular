@@ -1,6 +1,7 @@
 package com.ab.RedditClone.service;
 
 import com.ab.RedditClone.dto.RegisterRequest;
+import com.ab.RedditClone.exceptions.SpringRedditException;
 import com.ab.RedditClone.model.NotificationEmail;
 import com.ab.RedditClone.model.User;
 import com.ab.RedditClone.model.VerificationToken;
@@ -8,10 +9,13 @@ import com.ab.RedditClone.repository.UserRepository;
 import com.ab.RedditClone.repository.VerificationTokenRepository;
 import lombok.AllArgsConstructor;
 
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -57,4 +61,24 @@ public class AuthService {
     }
 
 
+    public void verifyAccount(String token) {
+        Optional<VerificationToken> verificationToken = verificationTokenRepository.findByToken(token);
+        fetchUserAndEnable(verificationToken.orElseThrow(() -> new SpringRedditException("Invalid Token")));
+    }
+
+
+    @Transactional(readOnly = true)
+    public User getCurrentUser() {
+        org.springframework.security.core.userdetails.User principal = (org.springframework.security.core.userdetails.User) SecurityContextHolder.
+                getContext().getAuthentication().getPrincipal();
+        return userRepository.findByUsername(principal.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User name not found - " + principal.getUsername()));
+    }
+
+    private void fetchUserAndEnable(VerificationToken verificationToken) {
+        String username = verificationToken.getUser().getUsername();
+        User user = userRepository.findByUsername(username).orElseThrow(() -> new SpringRedditException("User not found with name - " + username));
+        user.setEnabled(true);
+        userRepository.save(user);
+    }
 }
