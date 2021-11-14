@@ -2,6 +2,7 @@ package com.ab.RedditClone.service;
 
 import com.ab.RedditClone.dto.AuthenticationResponse;
 import com.ab.RedditClone.dto.LoginRequest;
+import com.ab.RedditClone.dto.RefreshTokenRequest;
 import com.ab.RedditClone.dto.RegisterRequest;
 import com.ab.RedditClone.exceptions.SpringRedditException;
 import com.ab.RedditClone.model.NotificationEmail;
@@ -12,6 +13,7 @@ import com.ab.RedditClone.repository.VerificationTokenRepository;
 import com.ab.RedditClone.security.JwtProvider;
 import lombok.AllArgsConstructor;
 
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -105,5 +107,21 @@ public class AuthService {
                 .expiresAt(Instant.now().plusMillis(jwtProvider.getJwtExpirationInMillis()))
                 .username(loginRequest.getUsername())
                 .build();
+    }
+
+    public AuthenticationResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        refreshTokenService.validateRefreshToken(refreshTokenRequest.getRefreshToken());
+        String token = jwtProvider.generateTokenWithUserName(refreshTokenRequest.getUsername());
+        return AuthenticationResponse.builder()
+                .authenticationToken(token)
+                .refreshToken(refreshTokenRequest.getRefreshToken())
+                .expiresAt(Instant.now().plusMillis(jwtProvider.getJwtExpirationInMillis()))
+                .username(refreshTokenRequest.getUsername())
+                .build();
+    }
+
+    public boolean isLoggedIn() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return !(authentication instanceof AnonymousAuthenticationToken) && authentication.isAuthenticated();
     }
 }
